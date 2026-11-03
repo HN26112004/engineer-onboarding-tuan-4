@@ -9,6 +9,7 @@ describe('classifyTicket - Triage Helper', () => {
 
       expect(result).toEqual({
         classOfService: 'STANDARD',
+        effectivePriority: 'STANDARD',
         specialTreatment: 'None',
       });
     });
@@ -18,6 +19,7 @@ describe('classifyTicket - Triage Helper', () => {
 
       expect(result).toEqual({
         classOfService: 'PRIORITY',
+        effectivePriority: 'PRIORITY',
         specialTreatment: 'Take priority at each stage',
       });
     });
@@ -27,43 +29,47 @@ describe('classifyTicket - Triage Helper', () => {
 
       expect(result).toEqual({
         classOfService: 'EXPEDITE',
+        effectivePriority: 'EXPEDITE',
         specialTreatment: 'Break WIP Limit, emergency resolution, and deployment',
       });
     });
   });
 
-  describe('Phân loại có Fixed Deadline', () => {
-    it('trả về EXPEDITE nếu deadline có nguy cơ bị trễ (LIKELY_MISSED)', () => {
+  describe('Phân loại nhóm Fixed Deadline riêng biệt', () => {
+    it('giữ nhóm FIXED_DEADLINE và xử lý như EXPEDITE nếu có nguy cơ trễ hạn (LIKELY_MISSED)', () => {
       const result = classifyTicket({
         affectedUsers: 1,
         hasFixedDeadline: true,
         deadlineStatus: 'LIKELY_MISSED',
       });
 
-      expect(result.classOfService).toBe('EXPEDITE');
-      expect(result.specialTreatment).toContain('Break WIP Limit');
+      expect(result.classOfService).toBe('FIXED_DEADLINE');
+      expect(result.effectivePriority).toBe('EXPEDITE');
+      expect(result.specialTreatment).toContain('Treated as expedite');
     });
 
-    it('trả về PRIORITY nếu deadline không an toàn (UNSAFE)', () => {
+    it('giữ nhóm FIXED_DEADLINE và xử lý như PRIORITY nếu thời hạn không an toàn (UNSAFE)', () => {
       const result = classifyTicket({
         affectedUsers: 2,
         hasFixedDeadline: true,
         deadlineStatus: 'UNSAFE',
       });
 
-      expect(result.classOfService).toBe('PRIORITY');
-      expect(result.specialTreatment).toBe('Take priority at each stage');
+      expect(result.classOfService).toBe('FIXED_DEADLINE');
+      expect(result.effectivePriority).toBe('PRIORITY');
+      expect(result.specialTreatment).toContain('Treated as priority');
     });
 
-    it('trả về STANDARD nếu deadline ở mức an toàn (SAFE)', () => {
+    it('giữ nhóm FIXED_DEADLINE và xử lý như STANDARD nếu thời hạn an toàn (SAFE)', () => {
       const result = classifyTicket({
         affectedUsers: 1,
         hasFixedDeadline: true,
         deadlineStatus: 'SAFE',
       });
 
-      expect(result.classOfService).toBe('STANDARD');
-      expect(result.specialTreatment).toBe('None');
+      expect(result.classOfService).toBe('FIXED_DEADLINE');
+      expect(result.effectivePriority).toBe('STANDARD');
+      expect(result.specialTreatment).toBe('Otherwise, treated as Standard class');
     });
   });
 });

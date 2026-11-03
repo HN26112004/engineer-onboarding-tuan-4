@@ -1,5 +1,5 @@
 // src/triage-helper.ts
-export type ClassOfService = 'STANDARD' | 'PRIORITY' | 'EXPEDITE';
+export type ClassOfService = 'STANDARD' | 'PRIORITY' | 'EXPEDITE' | 'FIXED_DEADLINE';
 
 export interface TriageInput {
   affectedUsers: number;
@@ -9,30 +9,33 @@ export interface TriageInput {
 
 export interface TriageResult {
   classOfService: ClassOfService;
+  effectivePriority: 'STANDARD' | 'PRIORITY' | 'EXPEDITE';
   specialTreatment: string;
 }
 
 export function classifyTicket(input: TriageInput): TriageResult {
-  // 1. Ưu tiên xử lý trường hợp có Fixed Deadline trước
+  // 1. Giữ Fixed Deadline là nhóm riêng và xác định mức độ xử lý (effectivePriority)
   if (input.hasFixedDeadline) {
-    if (input.deadlineStatus === 'LIKELY_MISSED') {
+    if (input.deadlineStatus === 'LIKELY_MISSED' || input.affectedUsers > 25) {
       return {
-        classOfService: 'EXPEDITE',
-        specialTreatment: 'Break WIP Limit, emergency resolution, and deployment',
+        classOfService: 'FIXED_DEADLINE',
+        effectivePriority: 'EXPEDITE',
+        specialTreatment: 'Treated as expedite if deadline is likely to be missed (Break WIP Limit)',
       };
     }
 
-    if (input.deadlineStatus === 'UNSAFE') {
+    if (input.deadlineStatus === 'UNSAFE' || input.affectedUsers >= 5) {
       return {
-        classOfService: 'PRIORITY',
-        specialTreatment: 'Take priority at each stage',
+        classOfService: 'FIXED_DEADLINE',
+        effectivePriority: 'PRIORITY',
+        specialTreatment: 'Treated as priority if deadline is unsafe (Take priority at each stage)',
       };
     }
 
-    // Trường hợp Fixed Deadline nhưng ở trạng thái SAFE -> Treated as Standard
     return {
-      classOfService: 'STANDARD',
-      specialTreatment: 'None',
+      classOfService: 'FIXED_DEADLINE',
+      effectivePriority: 'STANDARD',
+      specialTreatment: 'Otherwise, treated as Standard class',
     };
   }
 
@@ -40,6 +43,7 @@ export function classifyTicket(input: TriageInput): TriageResult {
   if (input.affectedUsers > 25) {
     return {
       classOfService: 'EXPEDITE',
+      effectivePriority: 'EXPEDITE',
       specialTreatment: 'Break WIP Limit, emergency resolution, and deployment',
     };
   }
@@ -47,12 +51,14 @@ export function classifyTicket(input: TriageInput): TriageResult {
   if (input.affectedUsers >= 5) {
     return {
       classOfService: 'PRIORITY',
+      effectivePriority: 'PRIORITY',
       specialTreatment: 'Take priority at each stage',
     };
   }
 
   return {
     classOfService: 'STANDARD',
+    effectivePriority: 'STANDARD',
     specialTreatment: 'None',
   };
 }
